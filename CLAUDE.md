@@ -4,7 +4,7 @@
 
 **rubber-ducky** is a local voice conversation system combining WhisperX (transcription + speaker diarization), Coqui XTTS v2 (TTS with voice cloning), and configurable LLMs (Claude API or Ollama). Built as a CLI-only application prioritizing privacy.
 
-**Status:** Phase 5 Complete (LLM Integration) - September 2026
+**Status:** Phase 6 Complete (Full Integration) - September 2026
 
 ## Architecture
 
@@ -306,10 +306,14 @@ rubber-ducky config [--key KEY] [--value VALUE]
 - [x] Streaming response support
 - [x] Message validation and formatting
 
-### Phase 6: Integration
-- [ ] conversation/engine.py - Main loop & state machine
-- [ ] conversation/turn_manager.py - Turn-taking logic
-- [ ] End-to-end: Speak → transcribe → LLM → TTS → hear response
+### Phase 6: Integration ✅ Complete
+- [x] conversation/turn_manager.py - Turn-taking logic with VAD
+- [x] conversation/engine.py - Main conversation loop
+- [x] State machine (LISTENING → SPEAKING → PROCESSING → PLAYING)
+- [x] End-to-end: Microphone → VAD → WhisperX → LLM → XTTS → Speaker
+- [x] Interruption support (barge-in detection)
+- [x] Database integration (conversation logging)
+- [x] Audio resampling (24kHz TTS → 16kHz playback)
 
 ### Phase 7: Polish
 - [ ] Error handling (graceful failures, clear messages)

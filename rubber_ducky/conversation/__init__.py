@@ -1,8 +1,11 @@
-"""Conversation engine module.
+"""Conversation engine and turn management."""
 
-This module will contain:
-- ConversationEngine: Main conversation loop with state machine
-- TurnManager: Turn-taking logic with VAD
-"""
+from rubber_ducky.conversation.engine import ConversationEngine
+from rubber_ducky.conversation.turn_manager import TurnManager, TurnState, Turn
 
-# Will be implemented in Phase 6
+__all__ = [
+    "ConversationEngine",
+    "TurnManager",
+    "TurnState",
+    "Turn",
+]
