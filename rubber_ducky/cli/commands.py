@@ -183,7 +183,8 @@ def setup():
 @cli.command()
 @click.option('--sample', required=True, type=click.Path(exists=True), help='Audio file with voice sample (6-10 seconds recommended)')
 @click.option('--name', required=True, help='Name for this voice sample')
-def clone_voice(sample, name):
+@click.option('--test-text', default="This is a test of the voice cloning system.", help='Text to synthesize for testing')
+def clone_voice(sample, name, test_text):
     """Clone a voice from an audio sample.
 
     Provide a 6-10 second audio sample of clear speech
@@ -191,28 +192,76 @@ def clone_voice(sample, name):
 
     Example:
         rubber-ducky clone-voice --sample ~/voice.wav --name Troy
+        rubber-ducky clone-voice --sample voice.wav --name Troy --test-text "Hello world"
     """
     try:
         console.print(Panel.fit(
-            "[bold cyan]Voice Cloning[/bold cyan]",
-            title="XTTS v2"
+            "[bold cyan]Voice Cloning with XTTS v2[/bold cyan]",
+            title="Voice Cloning"
         ))
 
         sample_path = Path(sample).expanduser()
-        console.print(f"Sample: {sample_path}")
+        console.print(f"\nVoice sample: {sample_path}")
+        console.print(f"Voice name: {name}")
+        console.print(f"Test text: {test_text}\n")
 
-        # TODO: Implement voice cloning
-        # 1. Load audio sample
-        # 2. Validate duration (6-10 seconds ideal)
-        # 3. Test with XTTS
-        # 4. Save to voice_samples/
-        # 5. Update config
+        # Validate audio file
+        if not sample_path.exists():
+            console.print(f"[red]Error: File not found: {sample_path}[/red]")
+            sys.exit(1)
 
-        console.print("[yellow]Voice cloning not yet implemented[/yellow]")
-        console.print("This will be implemented in Phase 4 of development")
+        # Check duration
+        try:
+            import soundfile as sf
+            audio, sr = sf.read(sample_path)
+            duration = len(audio) / sr
+            console.print(f"Sample duration: {duration:.1f} seconds")
 
+            if duration < 5:
+                console.print("[yellow]Warning: Sample is short (<5s). 6-10s recommended.[/yellow]")
+            elif duration > 15:
+                console.print("[yellow]Warning: Sample is long (>15s). 6-10s recommended.[/yellow]")
+            else:
+                console.print("✓ Duration is good (6-10s optimal)")
+
+        except Exception as e:
+            console.print(f"[yellow]Could not validate duration: {e}[/yellow]")
+
+        # Import and use TTSEngine
+        console.print("\nLoading XTTS v2 model...")
+        console.print("[yellow](This may take a few minutes on first run - downloading ~2.1GB)[/yellow]\n")
+
+        from rubber_ducky.tts import TTSEngine
+
+        # Determine device
+        import torch
+        device = "cuda" if torch.cuda.is_available() else "cpu"
+
+        engine = TTSEngine(device=device)
+
+        # Clone voice
+        console.print(f"Cloning voice '{name}'...\n")
+        output_path = engine.clone_voice(
+            voice_sample_path=sample_path,
+            voice_name=name,
+            test_text=test_text
+        )
+
+        console.print(f"\n[green]✓ Voice cloned successfully![/green]")
+        console.print(f"\nVoice saved to: {output_path}")
+        console.print(f"Test audio: {output_path.parent / f'{name}_test.wav'}")
+
+        console.print("\n[bold]To use this voice:[/bold]")
+        console.print(f"  1. Add to .env: RUBBER_DUCKY_XTTS_VOICE_SAMPLE={output_path}")
+        console.print(f"  2. Or use: rubber-ducky converse --voice {output_path}")
+
+    except KeyboardInterrupt:
+        console.print("\n[yellow]Voice cloning cancelled by user.[/yellow]")
+        sys.exit(1)
     except Exception as e:
-        console.print(f"[red]Error: {e}[/red]")
+        console.print(f"\n[red]Error: {e}[/red]")
+        import traceback
+        traceback.print_exc()
         sys.exit(1)
 
 

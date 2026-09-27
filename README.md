@@ -2,7 +2,7 @@
 
 Local voice conversation system with WhisperX transcription, Coqui XTTS v2 voice cloning, and configurable LLMs (Claude API or Ollama).
 
-**Status:** 🚧 In Development - Phase 3 Complete (Audio + Transcription)
+**Status:** 🚧 In Development - Phase 4 Complete (Audio + Transcription + TTS)
 
 ## Features
 
@@ -181,9 +181,10 @@ Microphone → VAD → WhisperX → LLM → XTTS v2 → Speaker
   - [x] Word-level timestamps
   - [x] Diarization support (optional)
 
-- [ ] **Phase 4: TTS**
-  - [ ] XTTS v2 integration
-  - [ ] Voice cloning workflow
+- [x] **Phase 4: TTS** ✅ Complete
+  - [x] XTTS v2 integration
+  - [x] Voice cloning workflow
+  - [x] Speech synthesis with cloned voices
 
 - [ ] **Phase 5: LLM**
   - [ ] LLM abstraction layer

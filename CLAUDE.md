@@ -4,7 +4,7 @@
 
 **rubber-ducky** is a local voice conversation system combining WhisperX (transcription + speaker diarization), Coqui XTTS v2 (TTS with voice cloning), and configurable LLMs (Claude API or Ollama). Built as a CLI-only application prioritizing privacy.
 
-**Status:** Phase 3 Complete (WhisperX Transcription) - September 2026
+**Status:** Phase 4 Complete (XTTS v2 Voice Cloning) - September 2026
 
 ## Architecture
 
@@ -290,10 +290,12 @@ rubber-ducky config [--key KEY] [--value VALUE]
 - [x] Test: test_transcription.py - 4 comprehensive tests
 - [x] Format transcript with/without timestamps
 
-### Phase 4: TTS
-- [ ] tts/engine.py - XTTS v2 integration
-- [ ] Implement `clone-voice` command
-- [ ] Test: Text → speech with cloned voice
+### Phase 4: TTS ✅ Complete
+- [x] tts/engine.py - XTTS v2 integration
+- [x] Implement `clone-voice` command
+- [x] Test: Text → speech with cloned voice
+- [x] Voice cloning from 6-10s sample
+- [x] Test: test_tts.py - 4 comprehensive tests
 
 ### Phase 5: LLM
 - [ ] llm/base.py - Abstract LLMProvider
