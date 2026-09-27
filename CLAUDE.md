@@ -4,7 +4,7 @@
 
 **rubber-ducky** is a local voice conversation system combining WhisperX (transcription + speaker diarization), Coqui XTTS v2 (TTS with voice cloning), and configurable LLMs (Claude API or Ollama). Built as a CLI-only application prioritizing privacy.
 
-**Status:** Phase 1 Complete (Foundation) - September 2026
+**Status:** Phase 2 Complete (Audio Pipeline) - September 2026
 
 ## Architecture
 
@@ -82,11 +82,11 @@ rubber-ducky/
 │   │   ├── engine.py         # ConversationEngine (main loop) 🚧
 │   │   └── turn_manager.py  # TurnManager (turn-taking logic)
 │   │
-│   ├── audio/               # Audio I/O (Phase 2)
+│   ├── audio/               # Audio I/O (Phase 2) ✅
 │   │   ├── __init__.py
-│   │   ├── capture.py       # AudioCapture (sounddevice)
-│   │   ├── playback.py      # AudioPlayback
-│   │   └── vad.py           # VADEngine (Silero VAD wrapper)
+│   │   ├── capture.py       # AudioCapture (sounddevice) ✅
+│   │   ├── playback.py      # AudioPlayback ✅
+│   │   └── vad.py           # VADEngine (Silero VAD wrapper) ✅
 │   │
 │   ├── transcription/       # WhisperX (Phase 3)
 │   │   ├── __init__.py
@@ -134,8 +134,8 @@ rubber-ducky/
 3. `rubber_ducky/cli/commands.py` - Click CLI (user entry point)
 4. `setup.py` - Package setup (makes `rubber-ducky` command available)
 
-**Phase 2: Audio Pipeline** (Next)
-5. `rubber_ducky/audio/vad.py` - VAD wrapper (Silero VAD)
+**Phase 2: Audio Pipeline** ✅
+5. `rubber_ducky/audio/vad.py` - VAD wrapper (Silero VAD with energy fallback)
 6. `rubber_ducky/audio/capture.py` - Audio capture (sounddevice)
 7. `rubber_ducky/audio/playback.py` - Audio playback
 
@@ -275,11 +275,12 @@ rubber-ducky config [--key KEY] [--value VALUE]
 - [x] CLI skeleton (Click)
 - [x] README.md, CLAUDE.md
 
-### Phase 2: Audio Pipeline (Next)
-- [ ] audio/capture.py - AudioCapture class
-- [ ] audio/playback.py - AudioPlayback class
-- [ ] audio/vad.py - VADEngine (Silero VAD wrapper)
-- [ ] Test: Record audio → detect speech → playback
+### Phase 2: Audio Pipeline ✅ Complete
+- [x] audio/capture.py - AudioCapture class with queue-based capture
+- [x] audio/playback.py - AudioPlayback class with blocking/async modes
+- [x] audio/vad.py - VADEngine with Silero VAD + energy fallback
+- [x] Test: test_audio.py - 6 comprehensive tests
+- [x] Documentation: TESTING.md
 
 ### Phase 3: Transcription
 - [ ] transcription/engine.py - WhisperX integration
