@@ -1,0 +1,29 @@
+# Rubber Ducky Configuration
+
+# Audio Configuration
+audio:
+  sample_rate: 16000  # Whisper requires 16kHz
+  chunk_duration: 2.0  # seconds
+
+# Voice Activity Detection
+vad:
+  threshold: 0.5
+  min_speech_duration: 0.25  # seconds
+  min_silence_duration: 0.8  # seconds
+
+# Transcription (WhisperX)
+whisper:
+  model: base  # tiny, base, small, medium, large
+  language: null  # null for auto-detect, or 'en', 'es', etc.
+  compute_type: float32  # float16 or int8 for faster inference on GPU
+
+# Text-to-Speech (Coqui XTTS v2)
+tts:
+  language: en
+  temperature: 0.7
+  speed: 1.0
+
+# Conversation Settings
+conversation:
+  enable_diarization: true
+  timeout: 300.0  # Auto-end after 5 minutes of silence

@@ -1,0 +1,41 @@
+# Core ML Frameworks
+# IMPORTANT: Install PyTorch FIRST via: pip install torch torchvision torchaudio
+# Then install whisperx: pip install whisperx
+# Then install rest: pip install -r requirements.txt
+
+torch>=2.2.0
+torchvision>=2.2.0
+torchaudio>=2.2.0
+
+# Transcription + Diarization
+whisperx>=3.1.0
+
+# Text-to-Speech
+coqui-tts>=0.27.5
+
+# Voice Activity Detection
+# Note: silero-vad may need to be installed separately
+# pip install git+https://github.com/snakers4/silero-vad.git
+
+# LLM Clients
+anthropic>=0.34.0
+httpx>=0.27.0
+
+# Audio I/O
+sounddevice>=0.4.6
+numpy>=1.26.0
+
+# CLI & Display
+click>=8.1.7
+rich>=13.7.0
+
+# Configuration & Storage
+pydantic>=2.0.0
+pydantic-settings>=2.5.0
+python-dotenv>=1.0.0
+pyyaml>=6.0.1
+sqlalchemy>=2.0.0
+
+# Development
+pytest>=8.3.0
+pytest-asyncio>=0.24.0
