@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "rubber-ducky": {
+      "command": "rubber-ducky-mcp",
+      "description": "Voice I/O for Claude Code - listen and speak using rubber-ducky",
+      "env": {
+        "RUBBER_DUCKY_DATA_DIR": "~/dev/rubber-ducky/data"
+      }
+    }
+  }
+}

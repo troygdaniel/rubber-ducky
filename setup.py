@@ -22,10 +22,12 @@ setup(
         "python-dotenv>=1.0.0",
         "pyyaml>=6.0.1",
         "sqlalchemy>=2.0.0",
+        "mcp>=1.0.0",  # MCP server support
     ],
     entry_points={
         "console_scripts": [
             "rubber-ducky=rubber_ducky.cli.commands:cli",
+            "rubber-ducky-mcp=rubber_ducky.mcp.server:main",  # MCP server
         ],
     },
     python_requires=">=3.10,<3.15",

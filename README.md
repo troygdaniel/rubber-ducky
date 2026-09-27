@@ -2,7 +2,7 @@
 
 Local voice conversation system with WhisperX transcription, Coqui XTTS v2 voice cloning, and configurable LLMs (Claude API or Ollama).
 
-**Status:** 🚧 In Development - Phase 1 Complete (Foundation)
+**Status:** 🚧 In Development - Phase 1 Complete (Foundation + MCP Server)
 
 ## Features
 
@@ -13,6 +13,7 @@ Local voice conversation system with WhisperX transcription, Coqui XTTS v2 voice
 - **Barge-in Support**: Interrupt the assistant mid-sentence
 - **Configurable LLM**: Choose between Claude API (best quality) or Ollama (fully local)
 - **Privacy-First**: No cloud processing except optional Claude API calls
+- **MCP Server**: Use voice I/O directly in Claude Code (listen and speak tools)
 
 ## Requirements
 
@@ -89,7 +90,9 @@ rubber-ducky converse --provider ollama
 rubber-ducky converse --voice ~/my-voice.wav
 ```
 
-## Commands
+## Usage Modes
+
+### 1. Standalone Voice Conversation
 
 ```bash
 # Start voice conversation
@@ -107,6 +110,24 @@ rubber-ducky devices
 # View configuration
 rubber-ducky config
 ```
+
+### 2. MCP Server (Claude Code Integration)
+
+Use voice I/O directly in Claude Code:
+
+```bash
+# Start MCP server (Claude Code manages this automatically)
+rubber-ducky-mcp
+```
+
+**Setup:** See [MCP_SETUP.md](MCP_SETUP.md) for configuration
+
+**Tools exposed:**
+- `listen_and_transcribe()` - Capture audio and return transcribed text
+- `speak(text)` - Convert text to speech and play it
+- `status()` - Check if voice I/O is ready
+
+**Examples:** See [MCP_EXAMPLES.md](MCP_EXAMPLES.md) for real-world usage
 
 ## Configuration
 
