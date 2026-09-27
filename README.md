@@ -2,7 +2,7 @@
 
 Local voice conversation system with WhisperX transcription, Coqui XTTS v2 voice cloning, and configurable LLMs (Claude API or Ollama).
 
-**Status:** 🚧 In Development - Phase 4 Complete (Audio + Transcription + TTS)
+**Status:** 🚧 In Development - Phase 5 Complete (Audio + Transcription + TTS + LLM)
 
 ## Features
 
@@ -186,10 +186,12 @@ Microphone → VAD → WhisperX → LLM → XTTS v2 → Speaker
   - [x] Voice cloning workflow
   - [x] Speech synthesis with cloned voices
 
-- [ ] **Phase 5: LLM**
-  - [ ] LLM abstraction layer
-  - [ ] Claude provider
-  - [ ] Ollama provider
+- [x] **Phase 5: LLM** ✅ Complete
+  - [x] LLM abstraction layer
+  - [x] Claude provider (Anthropic API)
+  - [x] Ollama provider (local models)
+  - [x] Multi-turn conversations
+  - [x] Streaming support
 
 - [ ] **Phase 6: Integration**
   - [ ] Conversation engine
