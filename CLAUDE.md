@@ -4,7 +4,7 @@
 
 **rubber-ducky** is a local voice conversation system combining WhisperX (transcription + speaker diarization), Coqui XTTS v2 (TTS with voice cloning), and configurable LLMs (Claude API or Ollama). Built as a CLI-only application prioritizing privacy.
 
-**Status:** Phase 2 Complete (Audio Pipeline) - September 2026
+**Status:** Phase 3 Complete (WhisperX Transcription) - September 2026
 
 ## Architecture
 
@@ -88,9 +88,9 @@ rubber-ducky/
 │   │   ├── playback.py      # AudioPlayback ✅
 │   │   └── vad.py           # VADEngine (Silero VAD wrapper) ✅
 │   │
-│   ├── transcription/       # WhisperX (Phase 3)
+│   ├── transcription/       # WhisperX (Phase 3) ✅
 │   │   ├── __init__.py
-│   │   └── engine.py        # TranscriptionEngine
+│   │   └── engine.py        # TranscriptionEngine ✅
 │   │
 │   ├── tts/                 # Coqui XTTS v2 (Phase 4)
 │   │   ├── __init__.py
@@ -282,10 +282,13 @@ rubber-ducky config [--key KEY] [--value VALUE]
 - [x] Test: test_audio.py - 6 comprehensive tests
 - [x] Documentation: TESTING.md
 
-### Phase 3: Transcription
-- [ ] transcription/engine.py - WhisperX integration
-- [ ] Test: Transcribe sample audio
-- [ ] Add diarization support
+### Phase 3: Transcription ✅ Complete
+- [x] transcription/engine.py - WhisperX integration with lazy loading
+- [x] Word-level timestamps with alignment
+- [x] Speaker diarization support (optional)
+- [x] File and live audio transcription
+- [x] Test: test_transcription.py - 4 comprehensive tests
+- [x] Format transcript with/without timestamps
 
 ### Phase 4: TTS
 - [ ] tts/engine.py - XTTS v2 integration

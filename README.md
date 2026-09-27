@@ -2,7 +2,7 @@
 
 Local voice conversation system with WhisperX transcription, Coqui XTTS v2 voice cloning, and configurable LLMs (Claude API or Ollama).
 
-**Status:** 🚧 In Development - Phase 1 Complete (Foundation + MCP Server)
+**Status:** 🚧 In Development - Phase 3 Complete (Audio + Transcription)
 
 ## Features
 
@@ -169,15 +169,17 @@ Microphone → VAD → WhisperX → LLM → XTTS v2 → Speaker
   - [x] Configuration system (Pydantic Settings)
   - [x] Database models (SQLAlchemy)
   - [x] CLI commands (Click)
+  - [x] MCP server for Claude Code integration
 
-- [ ] **Phase 2: Audio Pipeline** 🚧 Next
-  - [ ] Audio capture (sounddevice)
-  - [ ] Audio playback
-  - [ ] VAD integration (Silero VAD)
+- [x] **Phase 2: Audio Pipeline** ✅ Complete
+  - [x] Audio capture (sounddevice)
+  - [x] Audio playback
+  - [x] VAD integration (Silero VAD + energy fallback)
 
-- [ ] **Phase 3: Transcription**
-  - [ ] WhisperX integration
-  - [ ] Diarization support
+- [x] **Phase 3: Transcription** ✅ Complete
+  - [x] WhisperX integration
+  - [x] Word-level timestamps
+  - [x] Diarization support (optional)
 
 - [ ] **Phase 4: TTS**
   - [ ] XTTS v2 integration
