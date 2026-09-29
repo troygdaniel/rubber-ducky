@@ -3,6 +3,8 @@
 import time
 import numpy as np
 import warnings
+import threading
+from datetime import datetime
 from typing import Optional
 from rich.console import Console
 from rich.live import Live
@@ -66,47 +68,45 @@ class ConversationEngine:
         self.conversation_id: Optional[int] = None
 
         # Push-to-talk state
-        self.spacebar_pressed = False
-        self.keyboard_listener = None
+        self.recording = False
+        self.input_thread = None
 
         # System prompt for LLM
         self.system_prompt = self.config.conversation_system_prompt
 
-    def _on_press(self, key):
-        """Handle key press (for push-to-talk)."""
-        try:
-            from pynput import keyboard
-            if key == keyboard.Key.space and self.push_to_talk:
-                if not self.spacebar_pressed:
-                    self.spacebar_pressed = True
+    def _input_thread_fn(self):
+        """Thread function to wait for Enter key in push-to-talk mode."""
+        while self.running:
+            try:
+                # Wait for Enter key (blocking)
+                input()
+
+                if not self.push_to_talk:
+                    continue
+
+                # Toggle recording state
+                if not self.recording:
+                    # Start recording
                     if self.turn_manager.state == TurnState.LISTENING:
-                        # Start recording
+                        self.recording = True
                         self.turn_manager.start_turn(speaker="user")
                         self.turn_manager.state = TurnState.SPEAKING
-                        self.console.print("[green]🎤 Recording (hold spacebar)...[/green]")
-        except Exception:
-            pass
-
-    def _on_release(self, key):
-        """Handle key release (for push-to-talk)."""
-        try:
-            from pynput import keyboard
-            if key == keyboard.Key.space and self.push_to_talk:
-                if self.spacebar_pressed:
-                    self.spacebar_pressed = False
+                        self.console.print("[green]🎤 Recording... (press Enter again to stop)[/green]")
+                else:
+                    # Stop recording
                     if self.turn_manager.state == TurnState.SPEAKING:
-                        # Stop recording and process
+                        self.recording = False
                         duration = self.turn_manager.get_audio_duration()
                         if duration > 0.3:  # Minimum 300ms
-                            self.console.print(f"[dim]Released ({duration:.1f}s)[/dim]\n")
+                            self.console.print(f"[dim]Stopped recording ({duration:.1f}s)[/dim]\n")
                             self.turn_manager.state = TurnState.PROCESSING
                         else:
                             # Too short, cancel
                             self.turn_manager.accumulated_audio = []
                             self.turn_manager.state = TurnState.LISTENING
                             self.console.print("[yellow]Recording too short, try again[/yellow]")
-        except Exception:
-            pass
+            except:
+                break
 
     def initialize_components(self):
         """Initialize all components (lazy loading)."""
@@ -183,21 +183,17 @@ class ConversationEngine:
             # Show instructions
             self.show_instructions()
 
-            # Start keyboard listener if push-to-talk
+            # Start input thread if push-to-talk
             if self.push_to_talk:
-                from pynput import keyboard
-                self.keyboard_listener = keyboard.Listener(
-                    on_press=self._on_press,
-                    on_release=self._on_release
-                )
-                self.keyboard_listener.start()
+                self.input_thread = threading.Thread(target=self._input_thread_fn, daemon=True)
+                self.input_thread.start()
 
             # Start audio capture
             self.audio_capture.start()
 
             # Main loop
             if self.push_to_talk:
-                self.console.print("[cyan]Ready (press and hold spacebar to talk)...[/cyan]\n")
+                self.console.print("[cyan]Ready (press Enter to start recording)...[/cyan]\n")
             else:
                 self.console.print("[cyan]Listening...[/cyan]\n")
             self.main_loop()
@@ -471,6 +467,12 @@ class ConversationEngine:
 
         try:
             db = SessionLocal()
+
+            # Convert float timestamp to datetime if needed
+            timestamp = turn.timestamp
+            if isinstance(timestamp, (int, float)):
+                timestamp = datetime.fromtimestamp(timestamp)
+
             db_turn = DBTurn(
                 conversation_id=self.conversation_id,
                 turn_number=turn.turn_number,
@@ -478,7 +480,7 @@ class ConversationEngine:
                 transcription=turn.text if turn.speaker == "user" else None,
                 llm_response=turn.text if turn.speaker == "assistant" else None,
                 audio_duration=turn.duration,
-                timestamp=turn.timestamp
+                timestamp=timestamp
             )
             db.add(db_turn)
             db.commit()
@@ -493,8 +495,8 @@ class ConversationEngine:
         instructions.append("Voice Conversation Started\n\n", style="bold cyan")
         instructions.append("How to use:\n", style="bold")
         if self.push_to_talk:
-            instructions.append("• Hold SPACEBAR to record your voice\n")
-            instructions.append("• Release SPACEBAR to send\n")
+            instructions.append("• Press ENTER to start recording\n")
+            instructions.append("• Press ENTER again to stop and send\n")
             instructions.append("• Assistant will respond automatically\n")
             instructions.append("• Press Ctrl+C to exit\n\n")
             instructions.append("Mode: Push-to-talk\n", style="yellow")
@@ -514,8 +516,7 @@ class ConversationEngine:
         """Clean up resources."""
         self.running = False
 
-        if self.keyboard_listener:
-            self.keyboard_listener.stop()
+        # Input thread is daemon, will stop when main thread stops
 
         if self.audio_capture:
             self.audio_capture.stop()

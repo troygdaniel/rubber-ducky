@@ -220,6 +220,7 @@ pip install -e .
 - `rich>=13.7.0` - Terminal formatting
 - `pydantic-settings>=2.5.0` - Configuration
 - `sqlalchemy>=2.0.0` - Database ORM
+- `threading` - Built-in Python module for input handling
 
 ## Development Patterns
 
@@ -269,10 +270,11 @@ rubber-ducky config [--key KEY] [--value VALUE]
 ```
 
 **Push-to-Talk Mode (Recommended):**
-- Hold SPACEBAR to record your voice
-- Release SPACEBAR to send
+- Press ENTER to start recording your voice
+- Press ENTER again to stop and send
 - Eliminates acoustic feedback issues
 - Faster response time (no VAD silence detection)
+- No accessibility permissions required (unlike spacebar)
 
 ## Implementation Phases
 
@@ -416,6 +418,7 @@ Requires Python 3.10-3.14 (3.10 recommended for best compatibility with dependen
 5. **Acoustic feedback / echo** → Use `--push-to-talk` mode (recommended)
 6. **System responds to itself** → Use `--push-to-talk` mode instead of VAD
 7. **Slow first response** → Model loads at startup now (20-30s wait is normal)
+8. **Database timestamp error** → Fixed in v1.1 (converts float to datetime)
 
 ## Development Workflow
 
