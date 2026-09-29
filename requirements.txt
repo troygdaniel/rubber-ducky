@@ -30,6 +30,7 @@ numpy>=1.26.0
 # CLI & Display
 click>=8.1.7
 rich>=13.7.0
+pynput>=1.7.6  # For keyboard input (push-to-talk)
 
 # Configuration & Storage
 pydantic>=2.0.0

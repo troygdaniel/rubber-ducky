@@ -58,12 +58,12 @@ class TTSEngine:
             from TTS.api import TTS
 
             print(f"Loading XTTS v2 model...")
-            print("(This may take a few minutes on first run - downloading ~2.1GB)")
+            print("(First run downloads ~2.1GB, subsequent runs load from cache)")
 
             # Load XTTS v2 model
             self.model = TTS(
                 model_name="tts_models/multilingual/multi-dataset/xtts_v2",
-                progress_bar=True,
+                progress_bar=False,  # Disable progress bar for cached loads
                 gpu=(self.device != "cpu")
             )
 

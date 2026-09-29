@@ -2,11 +2,16 @@
 
 import time
 import numpy as np
+import warnings
 from typing import Optional
 from rich.console import Console
 from rich.live import Live
 from rich.panel import Panel
 from rich.text import Text
+
+# Suppress torchcodec/torchaudio warnings (non-critical, uses fallback)
+warnings.filterwarnings("ignore", message=".*torchcodec.*")
+warnings.filterwarnings("ignore", message=".*torchaudio.*")
 
 from rubber_ducky.audio import AudioCapture, AudioPlayback, VADEngine
 from rubber_ducky.transcription import TranscriptionEngine
@@ -29,15 +34,17 @@ class ConversationEngine:
     - Turn-taking and state management
     """
 
-    def __init__(self, config=None, debug: bool = False):
+    def __init__(self, config=None, debug: bool = False, push_to_talk: bool = False):
         """Initialize conversation engine.
 
         Args:
             config: Settings object (defaults to global settings)
             debug: Enable debug output
+            push_to_talk: Use push-to-talk mode (hold spacebar to record)
         """
         self.config = config or settings
         self.debug = debug
+        self.push_to_talk = push_to_talk
         self.console = Console()
 
         # Components (lazy loaded)
@@ -58,8 +65,48 @@ class ConversationEngine:
         self.running = False
         self.conversation_id: Optional[int] = None
 
+        # Push-to-talk state
+        self.spacebar_pressed = False
+        self.keyboard_listener = None
+
         # System prompt for LLM
         self.system_prompt = self.config.conversation_system_prompt
+
+    def _on_press(self, key):
+        """Handle key press (for push-to-talk)."""
+        try:
+            from pynput import keyboard
+            if key == keyboard.Key.space and self.push_to_talk:
+                if not self.spacebar_pressed:
+                    self.spacebar_pressed = True
+                    if self.turn_manager.state == TurnState.LISTENING:
+                        # Start recording
+                        self.turn_manager.start_turn(speaker="user")
+                        self.turn_manager.state = TurnState.SPEAKING
+                        self.console.print("[green]🎤 Recording (hold spacebar)...[/green]")
+        except Exception:
+            pass
+
+    def _on_release(self, key):
+        """Handle key release (for push-to-talk)."""
+        try:
+            from pynput import keyboard
+            if key == keyboard.Key.space and self.push_to_talk:
+                if self.spacebar_pressed:
+                    self.spacebar_pressed = False
+                    if self.turn_manager.state == TurnState.SPEAKING:
+                        # Stop recording and process
+                        duration = self.turn_manager.get_audio_duration()
+                        if duration > 0.3:  # Minimum 300ms
+                            self.console.print(f"[dim]Released ({duration:.1f}s)[/dim]\n")
+                            self.turn_manager.state = TurnState.PROCESSING
+                        else:
+                            # Too short, cancel
+                            self.turn_manager.accumulated_audio = []
+                            self.turn_manager.state = TurnState.LISTENING
+                            self.console.print("[yellow]Recording too short, try again[/yellow]")
+        except Exception:
+            pass
 
     def initialize_components(self):
         """Initialize all components (lazy loading)."""
@@ -96,6 +143,8 @@ class ConversationEngine:
             voice_sample=self.config.xtts_voice_sample,
             device=self.config.xtts_device
         )
+        # Load model now (not lazily) to avoid delay on first response
+        self.tts.load_model()
         self.console.print("✓ TTS ready")
 
         # LLM
@@ -134,11 +183,23 @@ class ConversationEngine:
             # Show instructions
             self.show_instructions()
 
+            # Start keyboard listener if push-to-talk
+            if self.push_to_talk:
+                from pynput import keyboard
+                self.keyboard_listener = keyboard.Listener(
+                    on_press=self._on_press,
+                    on_release=self._on_release
+                )
+                self.keyboard_listener.start()
+
             # Start audio capture
             self.audio_capture.start()
 
             # Main loop
-            self.console.print("[cyan]Listening...[/cyan]\n")
+            if self.push_to_talk:
+                self.console.print("[cyan]Ready (press and hold spacebar to talk)...[/cyan]\n")
+            else:
+                self.console.print("[cyan]Listening...[/cyan]\n")
             self.main_loop()
 
         except KeyboardInterrupt:
@@ -172,6 +233,11 @@ class ConversationEngine:
 
     def handle_listening(self):
         """Handle LISTENING state - monitor for speech start."""
+        # In push-to-talk mode, keyboard handles state transitions
+        if self.push_to_talk:
+            time.sleep(0.01)
+            return
+
         # Get audio chunk
         chunk = self.audio_capture.get_chunk(timeout=0.1)
         if chunk is None:
@@ -202,7 +268,11 @@ class ConversationEngine:
         # Add to turn
         self.turn_manager.add_audio(chunk)
 
-        # Check for speech/silence
+        # In push-to-talk mode, keyboard handles when to stop
+        if self.push_to_talk:
+            return
+
+        # Check for speech/silence (VAD mode only)
         is_speech = self.vad.detect(chunk)
         self.turn_manager.update_speech_state(is_speech)
 
@@ -315,7 +385,12 @@ class ConversationEngine:
         self.audio_playback.play(resampled_audio, blocking=False)
 
     def handle_playing(self):
-        """Handle PLAYING state - monitor for interruption."""
+        """Handle PLAYING state - wait for playback to finish.
+
+        NOTE: Interruption detection is disabled to prevent echo/feedback.
+        The system was hearing its own voice and treating it as user input.
+        To re-enable interruptions, add proper acoustic echo cancellation.
+        """
         # Check if still playing
         if not self.audio_playback.is_playing:
             # Finished playing
@@ -323,25 +398,8 @@ class ConversationEngine:
             self.turn_manager.state = TurnState.LISTENING
             return
 
-        # Check for interruption (user speaking)
-        chunk = self.audio_capture.get_chunk(timeout=0.1)
-        if chunk is None:
-            return
-
-        is_speech = self.vad.detect(chunk)
-
-        if is_speech:
-            # User interrupted!
-            self.console.print("\n[yellow]⚠ Interrupted[/yellow]")
-            self.audio_playback.stop()
-
-            # Start new user turn
-            self.turn_manager.start_turn(speaker="user")
-            self.turn_manager.add_audio(chunk)
-            self.turn_manager.update_speech_state(is_speech=True)
-            self.turn_manager.state = TurnState.SPEAKING
-
-            self.console.print("[green]🎤 You're speaking...[/green]")
+        # Just wait - don't check for interruption to avoid feedback loop
+        time.sleep(0.1)
 
     def build_llm_messages(self):
         """Build message history for LLM.
@@ -434,10 +492,18 @@ class ConversationEngine:
         instructions = Text()
         instructions.append("Voice Conversation Started\n\n", style="bold cyan")
         instructions.append("How to use:\n", style="bold")
-        instructions.append("• Just speak naturally\n")
-        instructions.append("• Wait for silence detection to end your turn\n")
-        instructions.append("• You can interrupt the assistant at any time\n")
-        instructions.append("• Press Ctrl+C to exit\n\n")
+        if self.push_to_talk:
+            instructions.append("• Hold SPACEBAR to record your voice\n")
+            instructions.append("• Release SPACEBAR to send\n")
+            instructions.append("• Assistant will respond automatically\n")
+            instructions.append("• Press Ctrl+C to exit\n\n")
+            instructions.append("Mode: Push-to-talk\n", style="yellow")
+        else:
+            instructions.append("• Just speak naturally\n")
+            instructions.append("• Wait for silence detection to end your turn\n")
+            instructions.append("• Assistant responds automatically\n")
+            instructions.append("• Press Ctrl+C to exit\n\n")
+            instructions.append("Mode: Voice activity detection\n", style="yellow")
         instructions.append(f"LLM: {self.llm.get_model_name()}\n", style="dim")
         instructions.append(f"Voice: {self.config.xtts_voice_sample or 'default'}", style="dim")
 
@@ -447,6 +513,9 @@ class ConversationEngine:
     def cleanup(self):
         """Clean up resources."""
         self.running = False
+
+        if self.keyboard_listener:
+            self.keyboard_listener.stop()
 
         if self.audio_capture:
             self.audio_capture.stop()

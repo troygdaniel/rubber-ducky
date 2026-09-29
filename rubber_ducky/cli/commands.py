@@ -25,14 +25,16 @@ def cli():
 @cli.command()
 @click.option('--provider', type=click.Choice(['claude', 'ollama']), help='LLM provider to use')
 @click.option('--voice', type=click.Path(exists=True), help='Voice sample to use')
+@click.option('--push-to-talk', is_flag=True, help='Use push-to-talk mode (hold spacebar to record)')
 @click.option('--debug', is_flag=True, help='Enable debug output')
-def converse(provider, voice, debug):
+def converse(provider, voice, push_to_talk, debug):
     """Start a voice conversation.
 
     Example:
         rubber-ducky converse
         rubber-ducky converse --provider ollama
         rubber-ducky converse --voice ~/my-voice.wav
+        rubber-ducky converse --push-to-talk
     """
     try:
         # Override settings if provided
@@ -51,10 +53,12 @@ def converse(provider, voice, debug):
             console.print("[yellow]Warning: No voice sample configured. Using default XTTS voice.[/yellow]")
             console.print("Run 'rubber-ducky clone-voice' to create a custom voice.")
 
+        mode = "Push-to-talk" if push_to_talk else "Voice activity detection"
         console.print(Panel.fit(
             "[bold cyan]Rubber Ducky - Voice Conversation[/bold cyan]\n\n"
             f"LLM: {settings.llm_provider} ({settings.claude_model if settings.llm_provider == 'claude' else settings.ollama_model})\n"
             f"Voice: {settings.xtts_voice_sample or 'default'}\n"
+            f"Mode: {mode}\n"
             f"Debug: {debug}",
             title="Configuration"
         ))
@@ -62,7 +66,7 @@ def converse(provider, voice, debug):
         # Import here to avoid loading models during other commands
         from rubber_ducky.conversation.engine import ConversationEngine
 
-        engine = ConversationEngine(settings, debug=debug)
+        engine = ConversationEngine(settings, debug=debug, push_to_talk=push_to_talk)
         engine.start()
 
     except KeyboardInterrupt:
