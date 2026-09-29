@@ -249,7 +249,10 @@ pip install -e .
 ## CLI Commands
 
 ```bash
-# Start voice conversation
+# Start voice conversation (RECOMMENDED: use push-to-talk)
+rubber-ducky converse --push-to-talk [--provider claude|ollama] [--voice FILE] [--debug]
+
+# Voice activity detection mode (has acoustic feedback issues)
 rubber-ducky converse [--provider claude|ollama] [--voice FILE] [--debug]
 
 # Initial setup (download models, check deps)
@@ -264,6 +267,12 @@ rubber-ducky devices
 # View/update configuration
 rubber-ducky config [--key KEY] [--value VALUE]
 ```
+
+**Push-to-Talk Mode (Recommended):**
+- Hold SPACEBAR to record your voice
+- Release SPACEBAR to send
+- Eliminates acoustic feedback issues
+- Faster response time (no VAD silence detection)
 
 ## Implementation Phases
 
@@ -311,15 +320,16 @@ rubber-ducky config [--key KEY] [--value VALUE]
 - [x] conversation/engine.py - Main conversation loop
 - [x] State machine (LISTENING → SPEAKING → PROCESSING → PLAYING)
 - [x] End-to-end: Microphone → VAD → WhisperX → LLM → XTTS → Speaker
-- [x] Interruption support (barge-in detection)
+- [x] Interruption support (disabled due to acoustic feedback)
 - [x] Database integration (conversation logging)
 - [x] Audio resampling (24kHz TTS → 16kHz playback)
 
-### Phase 7: Polish
-- [ ] Error handling (graceful failures, clear messages)
-- [ ] Model download progress bars
-- [ ] Performance optimization (parallel where possible)
-- [ ] Documentation updates
+### Phase 7: Polish ✅ Complete
+- [x] Error handling (graceful failures, clear messages)
+- [x] Push-to-talk mode (eliminates acoustic feedback)
+- [x] Performance optimization (eager XTTS loading)
+- [x] Documentation updates (CLAUDE.md with usage recommendations)
+- [x] Suppress non-critical warnings (torchcodec)
 
 ## Testing Strategy
 
@@ -403,6 +413,9 @@ Requires Python 3.10-3.14 (3.10 recommended for best compatibility with dependen
 2. **"CUDA not available"** → Will use CPU (slower but works)
 3. **"Claude API key not configured"** → Set in .env or use Ollama
 4. **"No audio devices"** → Run `rubber-ducky devices` to list
+5. **Acoustic feedback / echo** → Use `--push-to-talk` mode (recommended)
+6. **System responds to itself** → Use `--push-to-talk` mode instead of VAD
+7. **Slow first response** → Model loads at startup now (20-30s wait is normal)
 
 ## Development Workflow
 
@@ -420,17 +433,30 @@ Requires Python 3.10-3.14 (3.10 recommended for best compatibility with dependen
 
 ## Status Summary
 
-**Completed:**
-- ✅ Project structure
-- ✅ Configuration system
-- ✅ Database models
-- ✅ CLI framework
-- ✅ Documentation
+**Project Status:** ✅ **COMPLETE** (September 2026)
 
-**Next Steps:**
-1. Implement audio capture (sounddevice)
-2. Implement audio playback
-3. Integrate Silero VAD
-4. Test audio pipeline
+All 7 phases complete:
+- ✅ Phase 1: Foundation
+- ✅ Phase 2: Audio Pipeline
+- ✅ Phase 3: Transcription (WhisperX)
+- ✅ Phase 4: TTS (XTTS v2 voice cloning)
+- ✅ Phase 5: LLM Integration (Claude + Ollama)
+- ✅ Phase 6: Conversation Engine (full integration)
+- ✅ Phase 7: Polish (push-to-talk, optimizations)
 
-**Goal:** Build in phases, test each component, integrate incrementally.
+**Working Features:**
+- Voice conversation with Ollama (llama3.2) or Claude
+- Voice cloning with XTTS v2
+- Push-to-talk mode (recommended)
+- VAD mode (has acoustic feedback issues)
+- Conversation history in SQLite database
+
+**Recommended Usage:**
+```bash
+rubber-ducky converse --push-to-talk --debug
+```
+
+**Future Enhancements:**
+- Echo cancellation for hands-free VAD mode
+- GPU support for faster TTS synthesis
+- Streaming LLM + TTS for lower latency
