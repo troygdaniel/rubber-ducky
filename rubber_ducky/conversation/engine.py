@@ -17,7 +17,7 @@ warnings.filterwarnings("ignore", message=".*torchaudio.*")
 
 from rubber_ducky.audio import AudioCapture, AudioPlayback, VADEngine
 from rubber_ducky.transcription import TranscriptionEngine
-from rubber_ducky.tts import TTSEngine
+from rubber_ducky.tts import TTSEngine, Pyttsx3Engine
 from rubber_ducky.llm import Message, ClaudeProvider, OllamaProvider
 from rubber_ducky.conversation.turn_manager import TurnManager, TurnState
 from rubber_ducky.storage.database import SessionLocal
@@ -122,15 +122,25 @@ class ConversationEngine:
         )
         self.console.print("✓ Transcription ready")
 
-        # TTS (XTTS v2)
-        self.console.print("Loading XTTS v2...")
-        self.tts = TTSEngine(
-            voice_sample=self.config.xtts_voice_sample,
-            device=self.config.xtts_device
-        )
-        # Load model now (not lazily) to avoid delay on first response
-        self.tts.load_model()
-        self.console.print("✓ TTS ready")
+        # TTS - choose provider based on config
+        if self.config.tts_provider == "xtts":
+            self.console.print("Loading XTTS v2 (slow, voice cloning)...")
+            self.tts = TTSEngine(
+                voice_sample=self.config.xtts_voice_sample,
+                device=self.config.xtts_device
+            )
+            # Load model now (not lazily) to avoid delay on first response
+            self.tts.load_model()
+            self.console.print("✓ TTS ready (XTTS v2)")
+        else:
+            self.console.print("Loading pyttsx3 (instant, local)...")
+            self.tts = Pyttsx3Engine(
+                voice=self.config.pyttsx3_voice,
+                rate=self.config.pyttsx3_rate,
+                sample_rate=self.config.sample_rate
+            )
+            self.tts.load_model()
+            self.console.print("✓ TTS ready (pyttsx3)")
 
         # LLM
         if self.config.llm_provider == "claude":

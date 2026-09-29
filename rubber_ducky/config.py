@@ -38,12 +38,19 @@ class Settings(BaseSettings):
     whisper_device: str = "cpu"  # cpu, cuda, mps
     whisper_compute_type: str = "float32"  # float16, int8 for faster inference
 
-    # XTTS Configuration
+    # TTS Configuration
+    tts_provider: Literal["xtts", "pyttsx3"] = "pyttsx3"  # xtts = slow/cloned, pyttsx3 = instant/robotic
+
+    # XTTS Configuration (when tts_provider = "xtts")
     xtts_language: str = "en"
     xtts_voice_sample: Optional[str] = None  # Path to cloned voice sample
     xtts_device: str = "cpu"  # cpu, cuda, mps
     xtts_temperature: float = 0.7
     xtts_speed: float = 1.0
+
+    # Pyttsx3 Configuration (when tts_provider = "pyttsx3")
+    pyttsx3_voice: Optional[str] = None  # Voice name (None = system default)
+    pyttsx3_rate: int = 200  # Words per minute
 
     # Conversation Settings
     enable_diarization: bool = False  # Speaker diarization (requires HF token)

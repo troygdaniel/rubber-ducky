@@ -24,22 +24,24 @@ def cli():
 
 @cli.command()
 @click.option('--provider', type=click.Choice(['claude', 'ollama']), help='LLM provider to use')
-@click.option('--voice', type=click.Path(exists=True), help='Voice sample to use')
-@click.option('--push-to-talk', is_flag=True, help='Use push-to-talk mode (hold spacebar to record)')
+@click.option('--tts', type=click.Choice(['xtts', 'pyttsx3']), help='TTS provider (xtts=slow/cloned, pyttsx3=instant/robotic)')
+@click.option('--voice', type=click.Path(exists=True), help='Voice sample to use (XTTS only)')
+@click.option('--push-to-talk', is_flag=True, help='Use push-to-talk mode (press Enter to start)')
 @click.option('--debug', is_flag=True, help='Enable debug output')
-def converse(provider, voice, push_to_talk, debug):
+def converse(provider, tts, voice, push_to_talk, debug):
     """Start a voice conversation.
 
     Example:
-        rubber-ducky converse
-        rubber-ducky converse --provider ollama
-        rubber-ducky converse --voice ~/my-voice.wav
-        rubber-ducky converse --push-to-talk
+        rubber-ducky converse --tts pyttsx3 --push-to-talk
+        rubber-ducky converse --provider ollama --tts pyttsx3
+        rubber-ducky converse --tts xtts --voice ~/my-voice.wav
     """
     try:
         # Override settings if provided
         if provider:
             settings.llm_provider = provider
+        if tts:
+            settings.tts_provider = tts
         if voice:
             settings.xtts_voice_sample = voice
 
@@ -49,15 +51,19 @@ def converse(provider, voice, push_to_talk, debug):
             console.print("Set RUBBER_DUCKY_CLAUDE_API_KEY in .env file")
             sys.exit(1)
 
-        if not settings.xtts_voice_sample:
+        # Voice sample warning only for XTTS
+        if settings.tts_provider == "xtts" and not settings.xtts_voice_sample:
             console.print("[yellow]Warning: No voice sample configured. Using default XTTS voice.[/yellow]")
             console.print("Run 'rubber-ducky clone-voice' to create a custom voice.")
 
-        mode = "Push-to-talk" if push_to_talk else "Voice activity detection"
+        mode = "Enter-to-talk (with VAD)" if push_to_talk else "Voice activity detection"
+        tts_desc = "XTTS v2 (slow, voice cloning)" if settings.tts_provider == "xtts" else "pyttsx3 (instant, local)"
+
         console.print(Panel.fit(
             "[bold cyan]Rubber Ducky - Voice Conversation[/bold cyan]\n\n"
             f"LLM: {settings.llm_provider} ({settings.claude_model if settings.llm_provider == 'claude' else settings.ollama_model})\n"
-            f"Voice: {settings.xtts_voice_sample or 'default'}\n"
+            f"TTS: {tts_desc}\n"
+            f"Voice: {settings.xtts_voice_sample or 'default (system voice)' if settings.tts_provider == 'pyttsx3' else 'default'}\n"
             f"Mode: {mode}\n"
             f"Debug: {debug}",
             title="Configuration"

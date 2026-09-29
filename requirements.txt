@@ -13,7 +13,8 @@ soundfile>=0.12.0  # For loading audio files
 librosa>=0.10.0    # For audio resampling (optional)
 
 # Text-to-Speech
-coqui-tts>=0.27.5
+coqui-tts>=0.27.5  # XTTS v2 (slow, voice cloning)
+pyttsx3>=2.90      # Fast local TTS (instant, robotic)
 
 # Voice Activity Detection
 # Note: silero-vad may need to be installed separately
