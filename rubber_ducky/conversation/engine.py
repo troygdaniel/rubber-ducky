@@ -84,27 +84,12 @@ class ConversationEngine:
                 if not self.push_to_talk:
                     continue
 
-                # Toggle recording state
-                if not self.recording:
-                    # Start recording
-                    if self.turn_manager.state == TurnState.LISTENING:
-                        self.recording = True
-                        self.turn_manager.start_turn(speaker="user")
-                        self.turn_manager.state = TurnState.SPEAKING
-                        self.console.print("[green]🎤 Recording... (press Enter again to stop)[/green]")
-                else:
-                    # Stop recording
-                    if self.turn_manager.state == TurnState.SPEAKING:
-                        self.recording = False
-                        duration = self.turn_manager.get_audio_duration()
-                        if duration > 0.3:  # Minimum 300ms
-                            self.console.print(f"[dim]Stopped recording ({duration:.1f}s)[/dim]\n")
-                            self.turn_manager.state = TurnState.PROCESSING
-                        else:
-                            # Too short, cancel
-                            self.turn_manager.accumulated_audio = []
-                            self.turn_manager.state = TurnState.LISTENING
-                            self.console.print("[yellow]Recording too short, try again[/yellow]")
+                # Only start recording on Enter press
+                # VAD will handle detecting when user stops speaking
+                if self.turn_manager.state == TurnState.LISTENING:
+                    self.turn_manager.start_turn(speaker="user")
+                    self.turn_manager.state = TurnState.SPEAKING
+                    self.console.print("\n[bold green]🎤 YOU: [/bold green][green]Listening... (speak now, I'll detect when you're done)[/green]")
             except:
                 break
 
@@ -193,9 +178,9 @@ class ConversationEngine:
 
             # Main loop
             if self.push_to_talk:
-                self.console.print("[cyan]Ready (press Enter to start recording)...[/cyan]\n")
+                self.console.print("\n[bold cyan]💤 WAITING:[/bold cyan] [cyan]Press Enter to start your first turn...[/cyan]\n")
             else:
-                self.console.print("[cyan]Listening...[/cyan]\n")
+                self.console.print("\n[bold green]🎤 LISTENING:[/bold green] [green]Speak naturally, I'll detect when you're done...[/green]\n")
             self.main_loop()
 
         except KeyboardInterrupt:
@@ -264,18 +249,15 @@ class ConversationEngine:
         # Add to turn
         self.turn_manager.add_audio(chunk)
 
-        # In push-to-talk mode, keyboard handles when to stop
-        if self.push_to_talk:
-            return
-
-        # Check for speech/silence (VAD mode only)
+        # Always use VAD to detect when user stops speaking
+        # (Even in push-to-talk mode, Enter just triggers start, VAD detects end)
         is_speech = self.vad.detect(chunk)
         self.turn_manager.update_speech_state(is_speech)
 
         # Check if turn should end
         if self.turn_manager.should_end_turn():
             duration = self.turn_manager.get_audio_duration()
-            self.console.print(f"[dim]Speech ended ({duration:.1f}s)[/dim]\n")
+            self.console.print(f"[dim]Detected silence. Processing {duration:.1f}s of speech...[/dim]\n")
 
             self.turn_manager.state = TurnState.PROCESSING
 
@@ -290,7 +272,7 @@ class ConversationEngine:
             return
 
         # Step 1: Transcribe
-        self.console.print("[cyan]Transcribing...[/cyan]")
+        self.console.print("\n[bold cyan]📝 PROCESSING:[/bold cyan] [cyan]Transcribing your speech...[/cyan]")
         transcription_start = time.time()
 
         result = self.transcription.transcribe(user_audio, sample_rate=self.config.sample_rate)
@@ -299,22 +281,22 @@ class ConversationEngine:
         transcription_time = time.time() - transcription_start
 
         if not user_text:
-            self.console.print("[yellow]Could not understand speech. Try again.[/yellow]\n")
+            self.console.print("[yellow]❌ Could not understand speech. Try again.[/yellow]\n")
             self.turn_manager.end_turn(text="[inaudible]", speaker="user")
             self.turn_manager.state = TurnState.LISTENING
-            self.console.print("[cyan]Listening...[/cyan]\n")
+            self.console.print("\n[bold cyan]💤 WAITING:[/bold cyan] [cyan]Press Enter to start your next turn...[/cyan]\n")
             return
 
         # Save user turn
         user_turn = self.turn_manager.end_turn(text=user_text, speaker="user")
         self.save_turn_to_db(user_turn)
 
-        self.console.print(f"[bold blue]You:[/bold blue] {user_text}")
+        self.console.print(f"\n[bold blue]You said:[/bold blue] {user_text}")
         if self.debug:
             self.console.print(f"[dim](transcribed in {transcription_time:.2f}s)[/dim]")
 
         # Step 2: Get LLM response
-        self.console.print("[cyan]Thinking...[/cyan]")
+        self.console.print("\n[bold cyan]📝 PROCESSING:[/bold cyan] [cyan]Thinking about response...[/cyan]")
         llm_start = time.time()
 
         # Build conversation history
@@ -345,20 +327,22 @@ class ConversationEngine:
             self.console.print("[cyan]Listening...[/cyan]\n")
             return
 
-        self.console.print(f"[bold green]Assistant:[/bold green] {assistant_text}")
+        self.console.print(f"\n[bold green]Assistant will say:[/bold green] {assistant_text}")
         if self.debug:
             self.console.print(f"[dim](generated in {llm_time:.2f}s, {llm_response.tokens_used} tokens)[/dim]")
 
-        # Step 3: Generate TTS
-        self.console.print("[cyan]Speaking...[/cyan]")
-        tts_start = time.time()
+        # Step 3: Generate TTS (this can take a while for long responses)
+        response_length = len(assistant_text)
+        self.console.print(f"\n[bold cyan]📝 PROCESSING:[/bold cyan] [cyan]Generating voice ({response_length} characters)...[/cyan]")
+        self.console.print("[dim]⏳ This may take 10-60 seconds for long responses. Please wait...[/dim]")
 
+        tts_start = time.time()
         assistant_audio = self.tts.synthesize(assistant_text)
         tts_time = time.time() - tts_start
 
         if self.debug:
             duration = len(assistant_audio) / self.tts.get_sample_rate()
-            self.console.print(f"[dim](synthesized {duration:.1f}s in {tts_time:.2f}s)[/dim]")
+            self.console.print(f"[dim]✓ Voice generated: {duration:.1f}s audio in {tts_time:.2f}s[/dim]")
 
         # Save assistant turn
         self.turn_manager.start_turn(speaker="assistant")
@@ -368,6 +352,7 @@ class ConversationEngine:
         self.save_turn_to_db(assistant_turn)
 
         # Step 4: Play response
+        self.console.print("\n[bold green]🔊 ASSISTANT:[/bold green] [green]Speaking now...[/green]\n")
         self.turn_manager.state = TurnState.PLAYING
 
         # Note: TTS sample rate is 24kHz, playback expects 16kHz by default
@@ -390,7 +375,7 @@ class ConversationEngine:
         # Check if still playing
         if not self.audio_playback.is_playing:
             # Finished playing
-            self.console.print("[cyan]Listening...[/cyan]\n")
+            self.console.print("\n[bold cyan]💤 WAITING:[/bold cyan] [cyan]Press Enter to start your next turn...[/cyan]\n")
             self.turn_manager.state = TurnState.LISTENING
             return
 
@@ -495,11 +480,12 @@ class ConversationEngine:
         instructions.append("Voice Conversation Started\n\n", style="bold cyan")
         instructions.append("How to use:\n", style="bold")
         if self.push_to_talk:
-            instructions.append("• Press ENTER to start recording\n")
-            instructions.append("• Press ENTER again to stop and send\n")
-            instructions.append("• Assistant will respond automatically\n")
+            instructions.append("• Press ENTER to start your turn\n")
+            instructions.append("• Speak your message\n")
+            instructions.append("• VAD will detect when you stop (silence > 0.8s)\n")
+            instructions.append("• Assistant processes and responds automatically\n")
             instructions.append("• Press Ctrl+C to exit\n\n")
-            instructions.append("Mode: Push-to-talk\n", style="yellow")
+            instructions.append("Mode: Enter-to-talk (with VAD)\n", style="yellow")
         else:
             instructions.append("• Just speak naturally\n")
             instructions.append("• Wait for silence detection to end your turn\n")

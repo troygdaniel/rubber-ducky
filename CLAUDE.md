@@ -270,11 +270,12 @@ rubber-ducky config [--key KEY] [--value VALUE]
 ```
 
 **Push-to-Talk Mode (Recommended):**
-- Press ENTER to start recording your voice
-- Press ENTER again to stop and send
-- Eliminates acoustic feedback issues
-- Faster response time (no VAD silence detection)
-- No accessibility permissions required (unlike spacebar)
+- Press ENTER once to start your turn
+- Speak your message
+- VAD automatically detects when you stop (silence > 0.8s)
+- System processes and responds automatically
+- No accessibility permissions required
+- Clear visual states show what's happening (YOU/PROCESSING/ASSISTANT/WAITING)
 
 ## Implementation Phases
 
@@ -399,9 +400,26 @@ WhisperX and XTTS run much faster with CUDA. CPU works but slower.
 **Python Version:**
 Requires Python 3.10-3.14 (3.10 recommended for best compatibility with dependencies).
 
+## Known Limitations
+
+**TTS Synthesis Delay (10-60 seconds for long responses):**
+The current implementation generates the entire response audio before playing anything. For long responses (200+ characters), this creates a noticeable delay. User sees "Generating voice..." message while waiting.
+
+**Why it happens:**
+1. LLM generates full response (~5s)
+2. XTTS synthesizes entire response to audio (~50s for 64s of audio)
+3. Audio starts playing only after synthesis completes
+
+**Solution (future enhancement):**
+Implement streaming pipeline to synthesize and play sentence-by-sentence:
+1. LLM streams response sentence by sentence
+2. Synthesize first sentence while LLM generates second
+3. Play first sentence while synthesizing second
+4. Result: < 5s to first audio (vs 50s+ currently)
+
 ## Future Enhancements
 
-1. **Streaming pipeline**: LLM + TTS sentence-by-sentence (< 1s latency)
+1. **Streaming pipeline**: LLM + TTS sentence-by-sentence (< 5s to first audio vs 50s+ currently)
 2. **Conversation memory**: Context across sessions
 3. **Custom wake word**: "Hey Ducky" activation
 4. **Multi-language**: Test XTTS with other languages
