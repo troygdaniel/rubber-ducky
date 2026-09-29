@@ -166,13 +166,15 @@ class TurnManager:
     def end_turn(
         self,
         text: Optional[str] = None,
-        interrupted: bool = False
+        interrupted: bool = False,
+        speaker: Optional[str] = None
     ) -> Turn:
         """End current turn and add to history.
 
         Args:
             text: Transcribed or generated text
             interrupted: Whether turn was interrupted
+            speaker: Override speaker detection (user or assistant)
 
         Returns:
             Completed Turn object
@@ -180,9 +182,13 @@ class TurnManager:
         audio = self.get_accumulated_audio()
         duration = self.get_audio_duration()
 
+        # Determine speaker
+        if speaker is None:
+            speaker = "user" if self.state == TurnState.SPEAKING else "assistant"
+
         turn = Turn(
             turn_number=self.current_turn_number,
-            speaker="user" if self.state == TurnState.SPEAKING else "assistant",
+            speaker=speaker,
             audio=audio if len(audio) > 0 else None,
             text=text,
             timestamp=self.turn_start_time,

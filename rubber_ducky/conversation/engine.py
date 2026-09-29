@@ -234,13 +234,13 @@ class ConversationEngine:
 
         if not user_text:
             self.console.print("[yellow]Could not understand speech. Try again.[/yellow]\n")
-            self.turn_manager.end_turn(text="[inaudible]")
+            self.turn_manager.end_turn(text="[inaudible]", speaker="user")
             self.turn_manager.state = TurnState.LISTENING
             self.console.print("[cyan]Listening...[/cyan]\n")
             return
 
         # Save user turn
-        user_turn = self.turn_manager.end_turn(text=user_text)
+        user_turn = self.turn_manager.end_turn(text=user_text, speaker="user")
         self.save_turn_to_db(user_turn)
 
         self.console.print(f"[bold blue]You:[/bold blue] {user_text}")
@@ -253,6 +253,12 @@ class ConversationEngine:
 
         # Build conversation history
         messages = self.build_llm_messages()
+
+        if self.debug:
+            self.console.print(f"[dim]Messages to LLM: {len(messages)} messages[/dim]")
+            for msg in messages:
+                self.console.print(f"[dim]  {msg.role}: {msg.content[:50]}...[/dim]")
+
         llm_response = self.llm.chat(
             messages,
             temperature=self.config.llm_temperature,
@@ -260,7 +266,18 @@ class ConversationEngine:
         )
         assistant_text = llm_response.text.strip()
 
+        if self.debug:
+            self.console.print(f"[dim]Raw LLM response: '{llm_response.text}'[/dim]")
+            self.console.print(f"[dim]Stripped text: '{assistant_text}'[/dim]")
+
         llm_time = time.time() - llm_start
+
+        # Handle empty response
+        if not assistant_text:
+            self.console.print("[yellow]LLM returned empty response. Returning to listening.[/yellow]\n")
+            self.turn_manager.state = TurnState.LISTENING
+            self.console.print("[cyan]Listening...[/cyan]\n")
+            return
 
         self.console.print(f"[bold green]Assistant:[/bold green] {assistant_text}")
         if self.debug:
@@ -279,7 +296,7 @@ class ConversationEngine:
 
         # Save assistant turn
         self.turn_manager.start_turn(speaker="assistant")
-        assistant_turn = self.turn_manager.end_turn(text=assistant_text)
+        assistant_turn = self.turn_manager.end_turn(text=assistant_text, speaker="assistant")
         assistant_turn.audio = assistant_audio  # Store TTS audio
         assistant_turn.duration = len(assistant_audio) / self.tts.get_sample_rate()
         self.save_turn_to_db(assistant_turn)
@@ -300,7 +317,7 @@ class ConversationEngine:
     def handle_playing(self):
         """Handle PLAYING state - monitor for interruption."""
         # Check if still playing
-        if not self.audio_playback.is_playing():
+        if not self.audio_playback.is_playing:
             # Finished playing
             self.console.print("[cyan]Listening...[/cyan]\n")
             self.turn_manager.state = TurnState.LISTENING

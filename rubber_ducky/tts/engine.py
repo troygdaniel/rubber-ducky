@@ -34,7 +34,12 @@ class TTSEngine:
             device: Device to use ('cpu', 'cuda', or 'mps')
             use_deepspeed: Enable DeepSpeed for faster inference (requires GPU)
         """
-        self.voice_sample = Path(voice_sample) if voice_sample else None
+        # Expand ~ in voice_sample path
+        if voice_sample:
+            self.voice_sample = Path(voice_sample).expanduser()
+        else:
+            self.voice_sample = None
+
         self.language = language
         self.device = device
         self.use_deepspeed = use_deepspeed
@@ -72,10 +77,17 @@ class TTSEngine:
             # Load voice sample if provided
             if self.voice_sample:
                 self.load_voice_sample(self.voice_sample)
+            else:
+                warnings.warn(
+                    "No voice sample provided. "
+                    "Voice cloning requires a 6-10 second audio sample. "
+                    "Run 'rubber-ducky clone-voice' to create one."
+                )
 
-        except ImportError:
+        except ImportError as e:
             raise ImportError(
-                "Coqui TTS not installed. Install with: pip install coqui-tts\n"
+                f"Coqui TTS not installed: {e}\n"
+                "Install with: pip install coqui-tts\n"
                 "Note: Requires PyTorch to be installed first."
             )
         except Exception as e:
@@ -138,39 +150,30 @@ class TTSEngine:
         if not text or not text.strip():
             raise ValueError("Text cannot be empty")
 
-        # Use default voice if no sample loaded
-        if self.speaker_embedding is None:
-            warnings.warn(
-                "No voice sample loaded. Using default XTTS voice. "
-                "Load a voice sample with load_voice_sample() for voice cloning."
+        # Check if voice sample is available
+        if not self.voice_sample or not self.voice_sample.exists():
+            raise RuntimeError(
+                "No voice sample loaded. XTTS v2 requires voice cloning.\n\n"
+                "Create a voice sample with:\n"
+                "  rubber-ducky clone-voice --sample <your-audio.wav> --name <voice-name>\n\n"
+                "Or record a 6-10 second audio clip and use it:\n"
+                "  rubber-ducky converse --voice ~/path/to/voice.wav"
             )
 
         try:
-            # Generate speech
-            if self.speaker_embedding is not None:
-                # Voice cloning mode
-                wav = self.model.tts(
-                    text=text,
-                    language=self.language,
-                    gpt_cond_latent=self.gpt_cond_latent,
-                    speaker_embedding=self.speaker_embedding,
-                    temperature=temperature,
-                    repetition_penalty=repetition_penalty,
-                    top_k=top_k,
-                    top_p=top_p,
-                    speed=speed
-                )
-            else:
-                # Default voice mode
-                wav = self.model.tts(
-                    text=text,
-                    language=self.language,
-                    temperature=temperature,
-                    repetition_penalty=repetition_penalty,
-                    top_k=top_k,
-                    top_p=top_p,
-                    speed=speed
-                )
+            # Generate speech with voice cloning
+            # Note: XTTS can use either speaker_wav path OR pre-computed embeddings
+            # Using the voice sample path is simpler and more reliable
+            wav = self.model.tts(
+                text=text,
+                language=self.language,
+                speaker_wav=str(self.voice_sample) if self.voice_sample else None,
+                temperature=temperature,
+                repetition_penalty=repetition_penalty,
+                top_k=top_k,
+                top_p=top_p,
+                speed=speed
+            )
 
             # Convert to numpy array
             if isinstance(wav, torch.Tensor):

@@ -7,9 +7,8 @@ import warnings
 
 # Silero VAD will be loaded dynamically
 try:
-    # Silero VAD is installed via: pip install git+https://github.com/snakers4/silero-vad.git
-    # For now, we'll implement a placeholder and lazy loading
-    SILERO_AVAILABLE = False
+    import silero_vad
+    SILERO_AVAILABLE = True
 except ImportError:
     SILERO_AVAILABLE = False
 
@@ -54,30 +53,23 @@ class VADEngine:
         if self._is_loaded:
             return
 
-        try:
-            # Load Silero VAD model
-            # This will be implemented once silero-vad is installed
-            # For now, use a placeholder
+        if SILERO_AVAILABLE:
+            try:
+                # Load Silero VAD model using the silero_vad package
+                self.model = silero_vad.load_silero_vad()
+                self._is_loaded = True
+                print("✓ Silero VAD model loaded")
+                return
 
-            # Real implementation would be:
-            # self.model, utils = torch.hub.load(
-            #     repo_or_dir='snakers4/silero-vad',
-            #     model='silero_vad',
-            #     force_reload=False,
-            #     onnx=False
-            # )
-
-            # Placeholder for now
+            except Exception as e:
+                warnings.warn(f"Failed to load Silero VAD: {e}. Using fallback.")
+        else:
             warnings.warn(
                 "Silero VAD not installed. Using energy-based fallback. "
-                "Install with: pip install git+https://github.com/snakers4/silero-vad.git"
+                "Install with: pip install silero-vad"
             )
 
-            self._is_loaded = True
-
-        except Exception as e:
-            warnings.warn(f"Failed to load Silero VAD: {e}. Using fallback.")
-            self._is_loaded = True
+        self._is_loaded = True
 
     def detect(self, audio_chunk: np.ndarray) -> bool:
         """Detect if audio chunk contains speech.
@@ -140,20 +132,44 @@ class VADEngine:
         Returns:
             Probability between 0 and 1
         """
-        if self.model is not None:
+        if self.model is not None and SILERO_AVAILABLE:
             # Use actual Silero VAD model
             try:
+                # Silero VAD requires specific chunk sizes:
+                # - 512 samples for 16kHz (32ms)
+                # - 256 samples for 8kHz (32ms)
+                window_size = 512 if self.sample_rate == 16000 else 256
+
                 # Convert to tensor
                 audio_tensor = torch.from_numpy(audio_chunk).float()
 
-                # Get speech probability
-                with torch.no_grad():
-                    speech_prob = self.model(audio_tensor, self.sample_rate).item()
+                # Ensure correct shape (must be 1D)
+                if audio_tensor.dim() > 1:
+                    audio_tensor = audio_tensor.squeeze()
 
-                return speech_prob
+                # Process in windows and average the results
+                num_samples = len(audio_tensor)
+                probabilities = []
+
+                for i in range(0, num_samples - window_size + 1, window_size):
+                    window = audio_tensor[i:i + window_size]
+
+                    with torch.no_grad():
+                        speech_prob = self.model(window, self.sample_rate).item()
+                        probabilities.append(speech_prob)
+
+                # Return average probability across all windows
+                if probabilities:
+                    return sum(probabilities) / len(probabilities)
+                else:
+                    # Chunk too small, fall back to energy detection
+                    return self._energy_based_detection(audio_chunk)
 
             except Exception as e:
-                warnings.warn(f"Silero VAD inference failed: {e}. Using fallback.")
+                # Silently fall back to energy detection on first error
+                if self.model is not None:
+                    warnings.warn(f"Silero VAD inference failed: {e}. Using fallback.")
+                    self.model = None  # Disable Silero for rest of session
 
         # Fallback: simple energy-based detection
         return self._energy_based_detection(audio_chunk)
